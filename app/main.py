@@ -8,10 +8,12 @@ import numpy as np
 import os
 from collections import OrderedDict
 from dotenv import load_dotenv
+from mangum import Mangum
 
 
 # FastAPI application instance
 app = FastAPI()
+handler = Mangum(app)
 
 # Load env variables
 load_dotenv()
@@ -42,6 +44,9 @@ class HybridMMRRequest(BaseModel):
     mmr_top_k: int = 20
 
 
+@app.get("/")
+async def root():
+    return {"message": "Hello from FastAPI on Vercel"}
 
 @app.post("/hybrid_mmr_retrieve")
 def hybrid_query_mmr(request_body: HybridMMRRequest):

@@ -19,8 +19,8 @@ handler = Mangum(app)
 load_dotenv()
 
 
-client = OpenAI('OPENAI_KEY')
-pc = Pinecone('PINECONE_KEY')
+client = OpenAI(api_key='OPENAI_KEY')
+pc = Pinecone(api_key='PINECONE_KEY')
 
 # Connect to both index's
 # Dense index: calls-crm-data-testing

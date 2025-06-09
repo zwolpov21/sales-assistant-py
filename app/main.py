@@ -49,7 +49,7 @@ async def root():
     return {"message": "Hello from FastAPI on Vercel"}
 
 @app.post("/hybrid_mmr_retrieve")
-def hybrid_query_mmr(request_body: HybridMMRRequest):
+async def hybrid_query_mmr(request_body: HybridMMRRequest):
     # Connect to both indexes (dense and sparse)
     dense_index = pc.Index(host=dense_url)
     sparse_index = pc.Index(host=sparse_url)

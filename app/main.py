@@ -8,19 +8,18 @@ import numpy as np
 import os
 from collections import OrderedDict
 from dotenv import load_dotenv
-from mangum import Mangum
 
 
 # FastAPI application instance
 app = FastAPI()
-handler = Mangum(app)
 
-# Load env variables
-load_dotenv()
+# Load development env varis if necessary
+if os.getenv("RENDER") != "true":
+    load_dotenv()
 
 
-client = OpenAI(api_key='OPENAI_KEY')
-pc = Pinecone(api_key='PINECONE_KEY')
+client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
+pc = Pinecone(api_key=os.getenv("PINECONE_KEY"))
 
 # Connect to both index's
 # Dense index: calls-crm-data-testing

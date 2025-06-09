@@ -8,12 +8,10 @@ import numpy as np
 import os
 from collections import OrderedDict
 from dotenv import load_dotenv
-from mangum import Mangum
 
 
 # FastAPI application instance
 app = FastAPI()
-handler = Mangum(app)
 
 # Load env variables
 load_dotenv()

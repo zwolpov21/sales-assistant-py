@@ -41,12 +41,13 @@ async def query_dense_rerank(request_body: query_schemas.DenseRerankRequest):
 
     """
     2. Query dense index with dense embedding
+       Note - metadata_filter is optional, if None, no filtering will be applied
     """
     dense_results = pinecone_client.query_dense_index(
         embedding=dense_embedding,
         namespace=request_body.namespace,
         top_k=request_body.top_k,
-        type=request_body.type
+        metadata_filter=request_body.metadata_filter,
     )
 
     """
@@ -65,16 +66,14 @@ async def query_dense_rerank(request_body: query_schemas.DenseRerankRequest):
     return {"hits": reranked_dense_results}
 
 
-@router.post("/query/dense_retrieve")
-async def query_dense_retrieve(request_body: query_schemas.DenseQueryRequest):
+@router.post("/query/dense")
+async def query_dense(request_body: query_schemas.DenseQueryRequest):
     """
     Queries the dense Pinecone index using the provided dense embedding.
     Simply retrieval, does not rerank results.
     
-    Supports optional metadata filtering by 'type'.
-    Valid 'type' values
-    - For the 'main' namespace: 'deal', 'company', 'contact'
-    - For the 'all_meetings' namespace: 'full_summary', 'short_summary', 'meeting_chunk'
+    Supports optional metadata filtering by different fields. 
+    See `query_schemas` for details.
     """
     
     # Get dense embedding of query via OpenAI
@@ -83,12 +82,17 @@ async def query_dense_retrieve(request_body: query_schemas.DenseQueryRequest):
     )["values"]
 
     # Query dense index with dense embedding
-    dense_results = pinecone_client.query_dense_index(
-        embedding=dense_embedding,
-        namespace=request_body.namespace,
-        top_k=request_body.top_k,
-        type=request_body.type
-    )
+    # Note - metadata_filter is optional, if None, no filtering will be applied
+    try:
+        dense_results = pinecone_client.query_dense_index(
+            embedding=dense_embedding,
+            namespace=request_body.namespace,
+            metadata_filter=request_body.metadata_filter, 
+            top_k=request_body.top_k
+        )
+    except Exception as e:
+        logger.error(f"Error querying dense index: {e}")
+        raise HTTPException(status_code=400, detail=f"Error querying dense index: {e}")
 
     return {"matches": dense_results}
 
@@ -160,7 +164,7 @@ async def query_dense_multi_retrieve(request_body: query_schemas.DenseMultiQuery
                 embedding=dense_embedding,
                 namespace=request_body.namespace,
                 top_k=request_body.top_k,
-                type=request_body.type
+                metadata_filter=request_body.metadata_filter,  # Optional metadata filter
             )
             top_k_dense_results.append(dense_results)
         except Exception as e:
@@ -231,12 +235,8 @@ async def query_dense_multi_retrieve(request_body: query_schemas.DenseMultiQuery
         combined_reranked_results.extend(reranked_batch)
     logger.info(f"Combined reranked results before global rerank: {len(combined_reranked_results)} results")
 
-    # If no results were found, raise an error (this shouldn't happen)
-    if(len(combined_reranked_results) == 0):
-        raise HTTPException(status_code=404, detail="An error occurred when combining locally reranked results, or no hits were found.")
-
     # Warn if combined results exceed 100
-    elif(len(combined_reranked_results) > 100):
+    if(len(combined_reranked_results) > 100):
         logger.warning(f"Combined reranked results exceed 100, truncating to 100 results.")
         combined_reranked_results = combined_reranked_results[:100]
 

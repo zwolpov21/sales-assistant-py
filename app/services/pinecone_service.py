@@ -1,4 +1,4 @@
-from pinecone import Pinecone, EmbedModel
+from pinecone import Pinecone, EmbedModel, PineconeApiException
 import numpy as np
 
 
@@ -46,8 +46,9 @@ class PineconeService:
         self, 
         embedding: list[float], 
         namespace: str = "main", 
+        metadata_filter: dict[str, dict[str, str]] = None,
+        filter_operator: str = "$and",
         top_k: int = 20, 
-        type: str = None
     ) -> list[dict]:
         """
         Queries the dense Pinecone index using the provided dense embedding.
@@ -60,30 +61,36 @@ class PineconeService:
         Returns: list of matches (dictionaries)
         """
 
+
+        """
+        0. Ensure filter_operator is valid
+        """
+        
+        
         """
         1. If type is provided, filter by type
            Otherwise, no filter
         """
-        if type is not None:
-            valid_types_main = ['deal', 'company', 'contact']
-            valid_types_all_meetings = ['full_summary', 'short_summary', 'meeting_chunk']
-
-            # Raise value error if invalid value for 'type' is provided
-            if namespace == "main" and type not in valid_types_main:
-                raise ValueError(f"Invalid type for namespace 'main'. Valid types are: {valid_types_main}")
-            elif namespace == "all_meetings" and type not in valid_types_all_meetings:
-                raise ValueError(f"Invalid type for namespace 'all_meetings'. Valid types are: {valid_types_all_meetings}")
-
-            # Query with metadata filter for 'type'
-            response = self.dense_index.query(
-                vector=embedding,
-                namespace=namespace,
-                top_k=top_k,
-                filter={
-                    "type": {"$eq": type}
-                },
-                include_metadata=True
-            )
+        if metadata_filter is not None:
+            # Raise value error if invalid filter operator is provided
+            if filter_operator not in ["$and", "$or", None]:
+                raise ValueError("Invalid filter_operator. Valid values are: '$and', '$or', None")
+            
+            # Query with metadata filters
+            try:
+                response = self.dense_index.query(
+                    vector=embedding,
+                    namespace=namespace,
+                    top_k=top_k,
+                    filter={
+                        filter_operator: [
+                            {key: value} for key, value in metadata_filter.items() if value is not None
+                        ]
+                    },
+                    include_metadata=True
+                )
+            except PineconeApiException as e:
+                raise RuntimeError(f"Pinecone query failed: {e}")
 
         else:
             response = self.dense_index.query(

@@ -46,8 +46,7 @@ class PineconeService:
         self, 
         embedding: list[float], 
         namespace: str = "main", 
-        metadata_filter: dict[str, dict[str, str]] = None,
-        filter_operator: str = "$and",
+        metadata_filter: dict = None,
         top_k: int = 20, 
     ) -> list[dict]:
         """
@@ -72,21 +71,13 @@ class PineconeService:
            Otherwise, no filter
         """
         if metadata_filter is not None:
-            # Raise value error if invalid filter operator is provided
-            if filter_operator not in ["$and", "$or", None]:
-                raise ValueError("Invalid filter_operator. Valid values are: '$and', '$or', None")
-            
             # Query with metadata filters
             try:
                 response = self.dense_index.query(
                     vector=embedding,
                     namespace=namespace,
                     top_k=top_k,
-                    filter={
-                        filter_operator: [
-                            {key: value} for key, value in metadata_filter.items() if value is not None
-                        ]
-                    },
+                    filter=metadata_filter,
                     include_metadata=True
                 )
             except PineconeApiException as e:

@@ -49,10 +49,15 @@ async def query_dense_rerank(request_body: query_schemas.DenseRerankRequest):
         top_k=request_body.top_k,
         metadata_filter=request_body.metadata_filter,
     )
+    logger.info(f"Queried dense index with {len(dense_results)} results.")
 
     """
-    3. Rerank dense results
+    3. Rerank dense results (as long as there ARE results))
     """
+    if len(dense_results) == 0:
+        logger.warning("No results found in dense index, returning empty hits.")
+        return {"hits": []}
+    
     reranked_dense_results = pinecone_client.rerank_results(
         query=request_body.query,
         top_k_matches=dense_results,
@@ -94,7 +99,7 @@ async def query_dense(request_body: query_schemas.DenseQueryRequest):
         logger.error(f"Error querying dense index: {e}")
         raise HTTPException(status_code=400, detail=f"Error querying dense index: {e}")
 
-    return {"matches": dense_results}
+    return {"hits": dense_results}
 
 
 @router.post("/query/dense_multi_retrieve")
@@ -209,6 +214,10 @@ async def query_dense_multi_retrieve(request_body: query_schemas.DenseMultiQuery
        because we need to ensure the final reranking step
        reranks AT MOST 100 results.
     """
+    if len(batches) == 0:
+        logger.warning("No batches to rerank, returning empty hits.")
+        return {"hits": []}
+    
     local_top_n: int = 100//len(batches)
     reranked_batches: list[list[dict]] = []
     for batch in batches:

@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from typing import Optional
 from app.services.pinecone_service import PineconeService
 from app.services.openai_service import OpenAIService
-from app.routers import query
+from app.routers import query, web_search
 import logging
 
 # Configure logging
@@ -24,13 +24,16 @@ logging.basicConfig(
 logger = logging.getLogger("query_pipeline.main")
 logger.info("Logging configured in main.py")
 
+# Load development env vars if necessary
+if os.getenv("RENDER") != "true":
+    load_dotenv()
+
 # FastAPI application instance
 app = FastAPI()
 app.include_router(router=query.router)
+app.include_router(router=web_search.router)
 
-# Load development env varis if necessary
-if os.getenv("RENDER") != "true":
-    load_dotenv()
+
 
 
 @app.get("/")

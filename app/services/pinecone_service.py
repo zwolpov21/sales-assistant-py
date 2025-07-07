@@ -180,19 +180,45 @@ class PineconeService:
         documents = []
 
         for match in top_k_matches:
+            # for full transcript chunks
             if "chunk_text" in match.get("metadata", {}):
                 documents.append({'id': match.get('id', ''), 'text': match.get('metadata', {}).get('chunk_text', '')})
+            
+            # for short or full summaries
             elif "summary" in match.get('metadata', {}):
                 documents.append({'id': match.get('id', ''), 'text': match.get('metadata', {}).get("summary", '')})
+            
+            # for deals
             elif match.get('metadata', {}).get('type', '') == "deal":
-                deal_text = f"Deal Name: {match.get('metadata', {}).get('deal_name', '')}"
-                deal_text += f"\nCompany Name: {match.get('metadata', {}).get('company_name', '')}"
-                deal_text += f"\nInternal Team Type: {match.get('metadata', {}).get('type_of_team', '')}"
-                deal_text += f"\nDeal Stage: {match.get('metadata', {}).get('stage', '')}"
-                deal_text += f"\nCreated At: {match.get('metadata', {}).get('created_at', '')}"
-                deal_text += f"\nIndustry Vertical: {match.get('metadata', {}).get('vertical', '')}"
-
+                deal_text = f"Deal Name: {match.get('metadata', {}).get('deal_name', 'none')}"
+                deal_text += f"\nCompany Name: {match.get('metadata', {}).get('company_name', 'none')}"
+                deal_text += f"\nInternal Team Type: {match.get('metadata', {}).get('type_of_team', 'none')}"
+                deal_text += f"\nDeal Stage: {match.get('metadata', {}).get('stage', 'none')}"
+                deal_text += f"\nCreated At: {match.get('metadata', {}).get('created_at', 'none')}"
+                deal_text += f"\nIndustry Vertical: {match.get('metadata', {}).get('vertical', 'none')}"
                 documents.append({"id": match.get('id', ''), "text": deal_text})
+
+            # for companies
+            elif match.get('metadata', {}).get('type', '') == "company":
+                company_text = f"Company Name: {match.get('metadata', {}).get('company_name', 'none')}"
+                company_text += f"\nIndustry Vertical: {match.get('metadata', {}).get('vertical', 'none')}"
+                company_text += f"\nCompany Segment Type: {match.get('metadata', {}).get('segment', 'none')}"
+                company_text += f"\nWebsite: {match.get('metadata', {}).get('website_url', 'none')}"
+                company_text += f"\nDescription: {match.get('metadata', {}).get('description', 'none')}"
+                company_text += f"\nCity Location: {match.get('metadata', {}).get('city_location', 'none')}"
+                company_text += f"\nCreated At: {match.get('metadata', {}).get('created_at', '')}"
+                documents.append({"id": match.get('id', ''), "text": company_text})
+            
+            # for contacts
+            elif match.get('metadata', {}).get('type', '') == "contact":
+                contact_text = f"Contact Name: {match.get('metadata', {}).get('contact_name', 'none')}"
+                contact_text += f"\nCompany Name: {match.get('metadata', {}).get('company_name', 'none')}"
+                contact_text += f"\nContact Email: {match.get('metadata', {}).get('email', 'none')}"
+                contact_text += f"\nContact Job Title: {match.get('metadata', {}).get('job_title', 'none')}"
+                contact_text += f"\nIndustry Vertical: {match.get('metadata', {}).get('vertical', 'none')}"
+                contact_text += f"\nCreated At: {match.get('metadata', {}).get('created_at', 'none')}"
+                documents.append({"id": match.get('id', ''), "text": contact_text})
+                
 
         reranked_docs = self.client.inference.rerank(
             model=model,

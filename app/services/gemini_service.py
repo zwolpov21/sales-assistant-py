@@ -46,12 +46,12 @@ class GeminiService:
             contents=query,
             config=self.config,
         )
-
         return response
 
-    def add_citations(self, response):
+    def full_citations(self, response):
         """
         Adds citations to the response text based on grounding metadata.
+        Adds a list of unique citations titles to the response as well.
         Refer to https://ai.google.dev/gemini-api/docs/google-search for more details.
 
         Args:
@@ -86,3 +86,28 @@ class GeminiService:
                 text = text[:end_index] + citation_string + text[end_index:]
 
         return {"text": text, "citations": list_citations}
+    
+    def list_citations(self, response):
+        """
+        Extracts a list of unique citation titles from the response.
+
+        Args:
+            response: The response object from the Gemini API containing grounding metadata.
+        
+        Returns:
+            A list of unique citation titles. *Does NOT return the response text*
+        """
+        supports = response.candidates[0].grounding_metadata.grounding_supports
+        chunks = response.candidates[0].grounding_metadata.grounding_chunks
+        
+        list_citations: list[str] = []
+
+        for support in supports:
+            if support.grounding_chunk_indices:
+                for i in support.grounding_chunk_indices:
+                    if i < len(chunks):
+                        title = chunks[i].web.title
+                        if title not in list_citations:
+                            list_citations.append(title)
+
+        return list_citations

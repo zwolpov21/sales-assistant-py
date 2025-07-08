@@ -15,3 +15,5 @@ class GeminiSearchRequest(BaseModel):
     """
     query: str
     grounding: Optional[bool] = True  # Whether to use grounding tools for real-time information
+    model:  Optional[str]  # Model to use for content generation
+    in_text_citations: Optional[bool] = False  # Whether to include in-text citations

@@ -63,15 +63,30 @@ async def gemini_search(request_body: web_search_schemas.GeminiSearchRequest):
     try:
         logger.info(f"Performing Gemini search for query: {request_body.query}...")
         gemini_client.config_web_search_tool()
-        response = gemini_client.get_completion(request_body.query)
+        response = gemini_client.get_completion(web_search=True, query=request_body.query, model=request_body.model)
         logger.info("Gemini search completed successfully.")
 
-        # Add citations to the response
-        logger.info("Adding citations to the response...")
-        response_cited = gemini_client.add_citations(response)
-        logger.info("Citations added successfully.")
+        # Add both in text and list citations to the response if indicated
+        if request_body.in_text_citations:
+            if not response.candidates or not response.candidates[0].grounding_metadata:
+                logger.warning("No grounding metadata found in the response. In-text citations will not be added.")
+                return {"search_response": response.text}
+            logger.info("Adding text and list citations to the response...")
+            response_cited = gemini_client.full_citations(response)
+            logger.info("Citations added successfully.")
+            return {"search_response": response_cited.get("text", ""), "citations": response_cited.get("citations", [])}
 
-        return {"search_response": response_cited}
+        # If no in-text citations, add only list citations
+        else:
+            logger.info("No in-text citations requested. Returning response with just list citations.")
+            if not response.candidates or not response.candidates[0].grounding_metadata:
+                logger.warning("No grounding metadata found in the response. Returning response without citations.")
+                return {"search_response": response.text}
+            citations: list[str] = gemini_client.list_citations(response)
+            logger.info("List citations added successfully.")
+
+            return {"search_response": response.text, "citations": citations}
+
     except Exception as e:
         logger.error(f"Error performing Gemini search: {e}")
         raise HTTPException(status_code=400, detail=f"An error occurred during the Gemini search: {str(e)}")

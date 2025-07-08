@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 import logging
 from app.services.firecrawl_service import FirecrawlService
+from app.services.gemini_service import GeminiService
 from app.schemas import web_search_schemas
 import os
 from dotenv import load_dotenv
@@ -17,6 +18,9 @@ if os.getenv("RENDER") != "true":
 
 # FirecrawlService 
 firecrawl_client = FirecrawlService(api_key=os.getenv("FIRECRAWL_KEY"))
+
+# GeminiService
+gemini_client = GeminiService(api_key=os.getenv("GEMINI_API_KEY"))
 
 # logging
 logger = logging.getLogger(__name__)
@@ -47,3 +51,27 @@ async def scrape_url(request_body: web_search_schemas.ScrapeRequest):
     except Exception as e:
         logger.error(f"Error scraping URL {request_body.url}: {e}")
         raise HTTPException(status_code=400, detail=f"An error occurred when scraping URL: {str(e)}")
+
+
+@router.post("/web_search/gemini_search")
+async def gemini_search(request_body: web_search_schemas.GeminiSearchRequest):
+    """
+    Perform a web search using Google Gemini.
+    
+    Returns the search results in a structured format.
+    """
+    try:
+        logger.info(f"Performing Gemini search for query: {request_body.query}...")
+        gemini_client.config_web_search_tool()
+        response = gemini_client.get_completion(request_body.query)
+        logger.info("Gemini search completed successfully.")
+
+        # Add citations to the response
+        logger.info("Adding citations to the response...")
+        response_cited = gemini_client.add_citations(response)
+        logger.info("Citations added successfully.")
+
+        return {"search_response": response_cited}
+    except Exception as e:
+        logger.error(f"Error performing Gemini search: {e}")
+        raise HTTPException(status_code=400, detail=f"An error occurred during the Gemini search: {str(e)}")

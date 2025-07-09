@@ -59,9 +59,21 @@ class GeminiService:
         Returns:
             A dictionary containing the modified text with citations and a list of unique citation titles.
         """
-        text = response.text
-        supports = response.candidates[0].grounding_metadata.grounding_supports
-        chunks = response.candidates[0].grounding_metadata.grounding_chunks
+        # Check if response has the required structure
+        if not response or not hasattr(response, 'candidates') or not response.candidates:
+            return {"text": "", "citations": []}
+        
+        candidate = response.candidates[0]
+        if not hasattr(candidate, 'grounding_metadata') or not candidate.grounding_metadata:
+            return {"text": response.text if hasattr(response, 'text') else "", "citations": []}
+        
+        text = response.text if hasattr(response, 'text') else ""
+        supports = candidate.grounding_metadata.grounding_supports
+        chunks = candidate.grounding_metadata.grounding_chunks
+
+        # Check if supports and chunks are not None
+        if not supports or not chunks:
+            return {"text": text, "citations": []}
 
         # Sort supports by end_index in descending order to avoid shifting issues when inserting.
         sorted_supports = sorted(supports, key=lambda s: s.segment.end_index, reverse=True)
@@ -74,16 +86,18 @@ class GeminiService:
                 # Create citation string like [1](link1)[2](link2)
                 citation_links = []
                 for i in support.grounding_chunk_indices:
-                    if i < len(chunks):
+                    if i < len(chunks) and chunks[i] and hasattr(chunks[i], 'web') and chunks[i].web and hasattr(chunks[i].web, 'title'):
                         title = chunks[i].web.title
-                        citation_links.append(f"[{i + 1}]({title})")
-                        
-                        # Add to full list of citations
-                        if title not in list_citations:
-                            list_citations.append(title)
+                        if title:  # Only add non-empty titles
+                            citation_links.append(f"[{i + 1}]({title})")
+                            
+                            # Add to full list of citations
+                            if title not in list_citations:
+                                list_citations.append(title)
 
-                citation_string = ", ".join(citation_links)
-                text = text[:end_index] + citation_string + text[end_index:]
+                if citation_links:  # Only add citation string if we have valid links
+                    citation_string = ", ".join(citation_links)
+                    text = text[:end_index] + citation_string + text[end_index:]
 
         return {"text": text, "citations": list_citations}
     
@@ -97,17 +111,29 @@ class GeminiService:
         Returns:
             A list of unique citation titles. *Does NOT return the response text*
         """
-        supports = response.candidates[0].grounding_metadata.grounding_supports
-        chunks = response.candidates[0].grounding_metadata.grounding_chunks
+        # Check if response has the required structure
+        if not response or not hasattr(response, 'candidates') or not response.candidates:
+            return []
+        
+        candidate = response.candidates[0]
+        if not hasattr(candidate, 'grounding_metadata') or not candidate.grounding_metadata:
+            return []
+        
+        supports = candidate.grounding_metadata.grounding_supports
+        chunks = candidate.grounding_metadata.grounding_chunks
+        
+        # Check if supports and chunks are not None
+        if not supports or not chunks:
+            return []
         
         list_citations: list[str] = []
 
         for support in supports:
             if support.grounding_chunk_indices:
                 for i in support.grounding_chunk_indices:
-                    if i < len(chunks):
+                    if i < len(chunks) and chunks[i] and hasattr(chunks[i], 'web') and chunks[i].web and hasattr(chunks[i].web, 'title'):
                         title = chunks[i].web.title
-                        if title not in list_citations:
+                        if title and title not in list_citations:  # Only add non-empty, unique titles
                             list_citations.append(title)
 
         return list_citations
